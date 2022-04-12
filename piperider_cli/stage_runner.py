@@ -10,6 +10,36 @@ import pandas as pd
 from piperider_cli.config import load_stages
 from piperider_cli.data import execute_ge_checkpoint
 
+PIPERIDER_CONFIG_PATH = os.path.join(os.path.expanduser("~"), ".config/piperider")
+PIPERIDER_RUN_CONFIG = f'{PIPERIDER_CONFIG_PATH}/run.json'
+
+
+def write_run_config(stage_files: list, keep_ge_workspace: bool):
+    run_config = dict({
+        'last_time': time.time(),
+        'stage_files': stage_files,
+        'keep_ge_workspace': keep_ge_workspace,
+        'workspace': os.getcwd(),
+    })
+
+    if not os.path.isdir(PIPERIDER_CONFIG_PATH):
+        os.mkdir(PIPERIDER_CONFIG_PATH)
+
+    with open(PIPERIDER_RUN_CONFIG, 'w') as fd:
+        os.utime(PIPERIDER_RUN_CONFIG, None)
+        json.dump(run_config, fd)
+        fd.close()
+    pass
+
+
+def read_run_config():
+    if not os.path.isfile(PIPERIDER_RUN_CONFIG):
+        return None
+    with open(PIPERIDER_RUN_CONFIG, 'r') as fd:
+        run_config = json.load(fd)
+        fd.close()
+    return run_config
+
 
 def refine_ydata_result(results: dict):
     outputs = {}
@@ -26,6 +56,7 @@ def refine_ydata_result(results: dict):
 
 
 def run_stages(all_stage_files, keep_ge_workspace: bool):
+    write_run_config(all_stage_files, keep_ge_workspace)
     for stage_file in all_stage_files:
         try:
             stage_content: dict = load_stages(stage_file)

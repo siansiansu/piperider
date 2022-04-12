@@ -2,7 +2,7 @@ from ruamel.yaml import YAML
 
 yaml = YAML(typ="safe")
 
-__all__ = ['load', 'load_stages', 'load_sources', 'get']
+__all__ = ['load', 'load_stages', 'load_sources', 'get', 'get_stages', 'get_sources']
 
 
 class Singleton(type):
