@@ -25,8 +25,7 @@ import { useEffect, useRef } from "react";
 
 import { Main } from "./Main";
 import { drawComparsionChart } from "../utils";
-import { fill, groupBy, sortBy, zip } from "lodash";
-import { objectKeys } from "@chakra-ui/utils";
+import { fill, groupBy, zip } from "lodash";
 
 function joinBykey(left, right) {
   const result = {};
@@ -164,21 +163,64 @@ function CompareTest({ base, input }) {
 }
 
 function CompareSchema({ base, input }) {
+  let columns = [];
+  let mapIndex = {};
+  let i = 0;
+  let added = 0;
+  let deleted = 0;
+  let changed = 0;
+
+  Object.entries(base.columns).forEach(([name, column]) => {    
+    mapIndex[column.name] = i;
+    columns.push({
+      name,
+      changed: true,
+      base: column,
+      input: undefined,
+    });
+    i++;
+    deleted++;
+  });
+
+  Object.entries(input.columns).forEach(([name, column]) => {    
+    if (mapIndex.hasOwnProperty(column.name)) {
+      const index = mapIndex[column.name];
+      const isChanged = columns[index].base.schema_type !== column.schema_type;
+      columns[index] = {
+        ...columns[index],
+        input: column,
+        changed: isChanged,
+      }
+      deleted--;
+      if (isChanged) {
+        changed++;
+      }      
+    } else {
+      columns.push({
+        name,
+        changed: true,
+        base: undefined,
+        input: column,        
+      });
+      added++;
+    }
+  })
+
   return (
     <Accordion allowToggle>
       <AccordionItem borderColor={"transparent"}>
         <AccordionButton px={0} _focus={{ boxShadow: "transparent" }}>
           Added:
           <Text as={"span"} fontWeight={700} ml={1}>
-            0
+            {added}
           </Text>
           , Deleted:
           <Text as={"span"} fontWeight={700} ml={1}>
-            0
+            {deleted}
           </Text>
           , Changed:{" "}
           <Text as={"span"} fontWeight={700} ml={1}>
-            0
+            {changed}
           </Text>
           <Box flex="1" textAlign="left" />
           <AccordionIcon />
@@ -195,13 +237,13 @@ function CompareSchema({ base, input }) {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {Object.entries(base.columns).map(([_, column]) => (
+                  {columns.map(column => (
                     <Tr
                       key={nanoid(10)}
                       color={column.changed ? "red.500" : "inherit"}
                     >
-                      <Td>{column.name ?? "-"}</Td>
-                      <Td>{column.schema_type ?? "-"}</Td>
+                      <Td>{column.base?.name ?? "-"}</Td>
+                      <Td>{column.base?.schema_type ?? "-"}</Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -221,13 +263,13 @@ function CompareSchema({ base, input }) {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {Object.entries(input.columns).map(([_, column]) => (
+                  {columns.map(column => (
                     <Tr
                       key={nanoid(10)}
                       color={column.changed ? "red.500" : "inherit"}
                     >
-                      <Td>{column.name ?? "-"}</Td>
-                      <Td>{column.schema_type ?? "-"}</Td>
+                      <Td>{column.input?.name ?? "-"}</Td>
+                      <Td>{column.input?.schema_type ?? "-"}</Td>
                     </Tr>
                   ))}
                 </Tbody>
@@ -317,7 +359,7 @@ function CompareProfileColumn({ name, base, input }) {
 
       {column.type === "datetime" && (
         <>
-          <MetricRow name="Min" base={input.max} input={base.max}></MetricRow>
+          <MetricRow name="Min" base={input.min} input={base.min}></MetricRow>
           <MetricRow name="Max" base={input.max} input={base.max}></MetricRow>
         </>
       )}
@@ -504,7 +546,7 @@ export function ComparisonReportMain({ base, input }) {
           <CompareSchema base={base} input={input} />
 
           <Heading fontSize={24}>Profiling</Heading>
-          <CompareProfile base={base} input={input} />
+          {/* <CompareProfile base={base} input={input} /> */}
         </Flex>
       </Flex>
     </Main>
