@@ -27,27 +27,6 @@ import { Main } from "./Main";
 import { drawComparsionChart } from "../utils";
 import { fill, groupBy, zip } from "lodash";
 
-function joinBykey(left, right) {
-  const result = {};
-
-  Object.entries(left).map(([key, value]) => {
-    if (!result[key]) {
-      result[key] = {};
-    }
-
-    result[key].left = value;
-  });
-
-  Object.entries(right).map(([key, value]) => {
-    if (!result[key]) {
-      result[key] = {};
-    }
-    result[key].right = value;
-  });
-
-  return result;
-}
-
 function formatTime(time) {
   return format(new Date(time), "yyyy/MM/dd HH:mm:ss");
 }
@@ -57,77 +36,83 @@ function transformTest(data, from) {
   let passed = 0;
   let failed = 0;
 
-
-  data.assertion_results.tests.forEach(test => {
-    if (test.status === 'passed') {
-      passed ++;
+  data.assertion_results.tests.forEach((test) => {
+    if (test.status === "passed") {
+      passed++;
     } else {
-      failed ++;
+      failed++;
     }
 
     tests.push({
       ...test,
-      level: 'Table',
-      column: '-',
+      level: "Table",
+      column: "-",
       from,
-    })
-  })
+    });
+  });
 
-  Object.keys(data.assertion_results.columns).forEach(column => {
+  Object.keys(data.assertion_results.columns).forEach((column) => {
     let columnTests = data.assertion_results.columns[column];
-    columnTests.forEach(test => {
-      if (test.status === 'passed') {
-        passed ++;
+    columnTests.forEach((test) => {
+      if (test.status === "passed") {
+        passed++;
       } else {
-        failed ++;
+        failed++;
       }
       tests.push({
         ...test,
-        level: 'Column',
+        level: "Column",
         column,
         from,
-      })
-    })
-  })
+      });
+    });
+  });
 
   return {
     tests: tests,
     passed,
     failed,
-  }
+  };
 }
 
 function CompareTest({ base, input }) {
   // group by "level", "column", "name"
-  let tests = groupBy([].concat(base, input), (test) => (`${test.level}_${test.column}_${test.name}`))  
+  let tests = groupBy(
+    [].concat(base, input),
+    (test) => `${test.level}_${test.column}_${test.name}`
+  );
   tests = Object.values(tests).map((groupedTest) => {
     let row = {
       level: groupedTest[0].level,
       column: groupedTest[0].column,
       name: groupedTest[0].name,
-    }
+    };
 
-    groupedTest.forEach(test => {
-      if (test.from === 'base') {
+    groupedTest.forEach((test) => {
+      if (test.from === "base") {
         row.base = test;
       } else {
         row.input = test;
       }
-    })
+    });
 
     return row;
-  })
+  });
 
-  const TestStatus = ({test}) => {
+  const TestStatus = ({ test }) => {
     let content;
     if (!test) {
-      content = '-'
-    } else if (test.status === 'passed') {
-      content = '✅'
+      content = "-";
+    } else if (test.status === "passed") {
+      content = "✅";
     } else {
-      content  = '❌'
+      content = "❌";
     }
-    return <Text as="span" role={"img"}>{content}</Text>    
+    return (
+      <Text as="span" role={"img"}>
+        {content}
+      </Text>
+    );
   };
 
   // render
@@ -144,18 +129,21 @@ function CompareTest({ base, input }) {
           </Tr>
         </Thead>
         <Tbody>
-          {
-            Object.values(tests).map(test => {
-            return <Tr>
-              <Td>{test.level}</Td>
-              <Td>{test.column}</Td>
-              <Td>{test.name}</Td>
-              <Td><TestStatus test={test.base} /></Td>
-              <Td><TestStatus test={test.input} /></Td>
-            </Tr>;
-            })
-          }          
-          
+          {Object.values(tests).map((test) => {
+            return (
+              <Tr>
+                <Td>{test.level}</Td>
+                <Td>{test.column}</Td>
+                <Td>{test.name}</Td>
+                <Td>
+                  <TestStatus test={test.base} />
+                </Td>
+                <Td>
+                  <TestStatus test={test.input} />
+                </Td>
+              </Tr>
+            );
+          })}
         </Tbody>
       </Table>
     </TableContainer>
@@ -170,7 +158,7 @@ function CompareSchema({ base, input }) {
   let deleted = 0;
   let changed = 0;
 
-  Object.entries(base.columns).forEach(([name, column]) => {    
+  Object.entries(base.columns).forEach(([name, column]) => {
     mapIndex[column.name] = i;
     columns.push({
       name,
@@ -182,7 +170,7 @@ function CompareSchema({ base, input }) {
     deleted++;
   });
 
-  Object.entries(input.columns).forEach(([name, column]) => {    
+  Object.entries(input.columns).forEach(([name, column]) => {
     if (mapIndex.hasOwnProperty(column.name)) {
       const index = mapIndex[column.name];
       const isChanged = columns[index].base.schema_type !== column.schema_type;
@@ -190,21 +178,21 @@ function CompareSchema({ base, input }) {
         ...columns[index],
         input: column,
         changed: isChanged,
-      }
+      };
       deleted--;
       if (isChanged) {
         changed++;
-      }      
+      }
     } else {
       columns.push({
         name,
         changed: true,
         base: undefined,
-        input: column,        
+        input: column,
       });
       added++;
     }
-  })
+  });
 
   return (
     <Accordion allowToggle>
@@ -237,7 +225,7 @@ function CompareSchema({ base, input }) {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {columns.map(column => (
+                  {columns.map((column) => (
                     <Tr
                       key={nanoid(10)}
                       color={column.changed ? "red.500" : "inherit"}
@@ -263,7 +251,7 @@ function CompareSchema({ base, input }) {
                   </Tr>
                 </Thead>
                 <Tbody>
-                  {columns.map(column => (
+                  {columns.map((column) => (
                     <Tr
                       key={nanoid(10)}
                       color={column.changed ? "red.500" : "inherit"}
@@ -298,21 +286,16 @@ function CompareProfileColumn({ name, base, input }) {
     </Flex>
   );
 
-  const NumberCell = ({ value }) => (
-    value ? Number(value).toFixed(3) : '-' 
-  );
+  const NumberCell = ({ value }) => (value ? Number(value).toFixed(3) : "-");
 
-  const GeneralCell = ({ value }) => (
-    value ? value : '-' 
-  );
+  const GeneralCell = ({ value }) => (value ? value : "-");
 
   const Missing = ({ column }) =>
-    column ?
-    (Number((column.total - column.non_nulls) / column.total) * 100).toFixed(
-      1
-    ) + "%" : '-';
-
-
+    column
+      ? (
+          Number((column.total - column.non_nulls) / column.total) * 100
+        ).toFixed(1) + "%"
+      : "-";
 
   const metrics = (
     <>
@@ -335,7 +318,11 @@ function CompareProfileColumn({ name, base, input }) {
         input="Input"
       ></MetricRow>
 
-      <MetricRow name="Total" base={base?.total || '-'} input={input?.total || '-'}></MetricRow>
+      <MetricRow
+        name="Total"
+        base={base?.total || "-"}
+        input={input?.total || "-"}
+      ></MetricRow>
       <MetricRow
         name="Missing"
         base={<Missing column={base} />}
@@ -343,8 +330,8 @@ function CompareProfileColumn({ name, base, input }) {
       ></MetricRow>
       <MetricRow
         name="Distinct"
-        base={base?.distinct || '-'}
-        input={input?.distinct || '-'}
+        base={base?.distinct || "-"}
+        input={input?.distinct || "-"}
       ></MetricRow>
       <Box height={2}></Box>
 
@@ -449,16 +436,12 @@ function CompareProfileColumn({ name, base, input }) {
       return m;
     };
 
-    let dataBase = base && transformDist(
-      base.distribution.labels,
-      base.distribution.counts,
-      null
-    );
-    let dataInput = input && transformDist(
-      input.distribution.labels,
-      null,
-      input.distribution.counts
-    );
+    let dataBase =
+      base &&
+      transformDist(base.distribution.labels, base.distribution.counts, null);
+    let dataInput =
+      input &&
+      transformDist(input.distribution.labels, null, input.distribution.counts);
 
     CompareDistribution = () => (
       <Grid my={4} templateColumns="1fr 1fr" gap={3}>
@@ -480,6 +463,27 @@ function CompareProfileColumn({ name, base, input }) {
 }
 
 function CompareProfile({ base, input }) {
+  function joinBykey(left, right) {
+    const result = {};
+
+    Object.entries(left).map(([key, value]) => {
+      if (!result[key]) {
+        result[key] = {};
+      }
+
+      result[key].left = value;
+    });
+
+    Object.entries(right).map(([key, value]) => {
+      if (!result[key]) {
+        result[key] = {};
+      }
+      result[key].right = value;
+    });
+
+    return result;
+  }
+
   let transformedData = joinBykey(base.columns, input.columns);
 
   return (
@@ -497,7 +501,7 @@ function CompareProfile({ base, input }) {
   );
 }
 
-export function ComparisonReportMain({ base, input }) {  
+export function ComparisonReportMain({ base, input }) {
   let tBase = transformTest(base, "base");
   let tInput = transformTest(input, "input");
 
@@ -533,10 +537,16 @@ export function ComparisonReportMain({ base, input }) {
                 <Tr>
                   <Td>Tables</Td>
                   <Td>
-                    {base.name}{base.created_at ? ` at ${formatTime(base.created_at)}` : ''}
+                    {base.name}
+                    {base.created_at
+                      ? ` at ${formatTime(base.created_at)}`
+                      : ""}
                   </Td>
                   <Td>
-                    {input.name}{input.created_at ? ` at ${formatTime(input.created_at)}` : ''}
+                    {input.name}
+                    {input.created_at
+                      ? ` at ${formatTime(input.created_at)}`
+                      : ""}
                   </Td>
                 </Tr>
                 <Tr>
