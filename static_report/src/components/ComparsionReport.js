@@ -25,7 +25,8 @@ import { useEffect, useRef } from "react";
 
 import { Main } from "./Main";
 import { drawComparsionChart } from "../utils";
-import { fill, zip } from "lodash";
+import { fill, groupBy, sortBy, zip } from "lodash";
+import { objectKeys } from "@chakra-ui/utils";
 
 function joinBykey(left, right) {
   const result = {};
@@ -48,11 +49,89 @@ function joinBykey(left, right) {
   return result;
 }
 
-function format_time(time) {
+function formatTime(time) {
   return format(new Date(time), "yyyy/MM/dd HH:mm:ss");
 }
 
+function transformTest(data, from) {
+  let tests = [];
+  let passed = 0;
+  let failed = 0;
+
+
+  data.assertion_results.tests.forEach(test => {
+    if (test.status === 'passed') {
+      passed ++;
+    } else {
+      failed ++;
+    }
+
+    tests.push({
+      ...test,
+      level: 'Table',
+      column: '-',
+      from,
+    })
+  })
+
+  Object.keys(data.assertion_results.columns).forEach(column => {
+    let columnTests = data.assertion_results.columns[column];
+    columnTests.forEach(test => {
+      if (test.status === 'passed') {
+        passed ++;
+      } else {
+        failed ++;
+      }
+      tests.push({
+        ...test,
+        level: 'Column',
+        column,
+        from,
+      })
+    })
+  })
+
+  return {
+    tests: tests,
+    passed,
+    failed,
+  }
+}
+
 function CompareTest({ base, input }) {
+  // group by "level", "column", "name"
+  let tests = groupBy([].concat(base, input), (test) => (`${test.level}_${test.column}_${test.name}`))  
+  tests = Object.values(tests).map((groupedTest) => {
+    let row = {
+      level: groupedTest[0].level,
+      column: groupedTest[0].column,
+      name: groupedTest[0].name,
+    }
+
+    groupedTest.forEach(test => {
+      if (test.from === 'base') {
+        row.base = test;
+      } else {
+        row.input = test;
+      }
+    })
+
+    return row;
+  })
+
+  const TestStatus = ({test}) => {
+    let content;
+    if (!test) {
+      content = '-'
+    } else if (test.status === 'passed') {
+      content = '✅'
+    } else {
+      content  = '❌'
+    }
+    return <Text as="span" role={"img"}>{content}</Text>    
+  };
+
+  // render
   return (
     <TableContainer>
       <Table variant={"simple"}>
@@ -66,36 +145,18 @@ function CompareTest({ base, input }) {
           </Tr>
         </Thead>
         <Tbody>
-          <Tr>
-            <Td>price</Td>
-            <Td>Table</Td>
-            <Td>row_count</Td>
-            <Td>
-              <Text as="span" role={"img"}>
-                ❌
-              </Text>
-            </Td>
-            <Td>
-              <Text as="span" role={"img"}>
-                ✅
-              </Text>
-            </Td>
-          </Tr>
-          <Tr>
-            <Td>open</Td>
-            <Td>Column</Td>
-            <Td>column_count</Td>
-            <Td>
-              <Text as="span" role={"img"}>
-                -
-              </Text>
-            </Td>
-            <Td>
-              <Text as="span" role={"img"}>
-                ✅
-              </Text>
-            </Td>
-          </Tr>
+          {
+            Object.values(tests).map(test => {
+            return <Tr>
+              <Td>{test.level}</Td>
+              <Td>{test.column}</Td>
+              <Td>{test.name}</Td>
+              <Td><TestStatus test={test.base} /></Td>
+              <Td><TestStatus test={test.input} /></Td>
+            </Tr>;
+            })
+          }          
+          
         </Tbody>
       </Table>
     </TableContainer>
@@ -375,7 +436,10 @@ function CompareProfile({ base, input }) {
   );
 }
 
-export function ComparisonReportMain({ base, input }) {
+export function ComparisonReportMain({ base, input }) {  
+  let tBase = transformTest(base, "base");
+  let tInput = transformTest(input, "input");
+
   return (
     <Main>
       <Flex direction={"column"} minH={"100vh"} width={"100%"}>
@@ -408,10 +472,10 @@ export function ComparisonReportMain({ base, input }) {
                 <Tr>
                   <Td>Tables</Td>
                   <Td>
-                    {base.name} at {format_time(base.created_at)}
+                    {base.name}{base.created_at ? ` at ${formatTime(base.created_at)}` : ''}
                   </Td>
                   <Td>
-                    {input.name} at {format_time(input.created_at)}
+                    {input.name}{input.created_at ? ` at ${formatTime(input.created_at)}` : ''}
                   </Td>
                 </Tr>
                 <Tr>
@@ -426,15 +490,15 @@ export function ComparisonReportMain({ base, input }) {
                 </Tr>
                 <Tr>
                   <Td>Test status</Td>
-                  <Td>2 Passed, 20 Failed</Td>
-                  <Td>20 Passed, 2 Failed</Td>
+                  <Td>{`${tBase.passed} Passed, ${tBase.failed} Failed`}</Td>
+                  <Td>{`${tInput.passed} Passed, ${tInput.failed} Failed`}</Td>
                 </Tr>
               </Tbody>
             </Table>
           </TableContainer>
 
           <Heading fontSize={24}>Tests</Heading>
-          <CompareTest base={base} input={input} />
+          <CompareTest base={tBase.tests} input={tInput.tests} />
 
           <Heading fontSize={24}>Schema</Heading>
           <CompareSchema base={base} input={input} />
