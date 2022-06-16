@@ -136,8 +136,8 @@ function CompareTest({ base, input }) {
       <Table variant={"simple"}>
         <Thead>
           <Tr>
-            <Th>Name</Th>
             <Th>Level</Th>
+            <Th>Column</Th>
             <Th>Assertion</Th>
             <Th>Base Status</Th>
             <Th>Input Status</Th>
@@ -233,7 +233,7 @@ function CompareSchema({ base, input }) {
                 <Thead>
                   <Tr>
                     <Th>Column</Th>
-                    <Th>Value</Th>
+                    <Th>Type</Th>
                   </Tr>
                 </Thead>
                 <Tbody>
@@ -283,7 +283,7 @@ function CompareSchema({ base, input }) {
 }
 
 function CompareProfileColumn({ name, base, input }) {
-  let column = base;
+  let column = base ? base : input;
   const isAllValuesExists = false;
 
   const MetricRow = ({ name, base, input }) => (
@@ -298,10 +298,21 @@ function CompareProfileColumn({ name, base, input }) {
     </Flex>
   );
 
+  const NumberCell = ({ value }) => (
+    value ? Number(value).toFixed(3) : '-' 
+  );
+
+  const GeneralCell = ({ value }) => (
+    value ? value : '-' 
+  );
+
   const Missing = ({ column }) =>
+    column ?
     (Number((column.total - column.non_nulls) / column.total) * 100).toFixed(
       1
-    ) + "%";
+    ) + "%" : '-';
+
+
 
   const metrics = (
     <>
@@ -324,7 +335,7 @@ function CompareProfileColumn({ name, base, input }) {
         input="Input"
       ></MetricRow>
 
-      <MetricRow name="Total" base={base.total} input={input.total}></MetricRow>
+      <MetricRow name="Total" base={base?.total || '-'} input={input?.total || '-'}></MetricRow>
       <MetricRow
         name="Missing"
         base={<Missing column={base} />}
@@ -332,8 +343,8 @@ function CompareProfileColumn({ name, base, input }) {
       ></MetricRow>
       <MetricRow
         name="Distinct"
-        base={base.distinct}
-        input={input.distinct}
+        base={base?.distinct || '-'}
+        input={input?.distinct || '-'}
       ></MetricRow>
       <Box height={2}></Box>
 
@@ -341,26 +352,34 @@ function CompareProfileColumn({ name, base, input }) {
         <>
           <MetricRow
             name="Min"
-            base={Number(input.min).toFixed(3)}
-            input={Number(base.min).toFixed(3)}
+            base={<NumberCell value={base?.min}></NumberCell>}
+            input={<NumberCell value={input?.min}></NumberCell>}
           ></MetricRow>
           <MetricRow
             name="Max"
-            base={Number(input.max).toFixed(3)}
-            input={Number(base.max).toFixed(3)}
+            base={<NumberCell value={base?.max}></NumberCell>}
+            input={<NumberCell value={input?.max}></NumberCell>}
           ></MetricRow>
           <MetricRow
             name="Average"
-            base={Number(input.avg).toFixed(3)}
-            input={Number(base.avg).toFixed(3)}
+            base={<NumberCell value={base?.avg}></NumberCell>}
+            input={<NumberCell value={input?.avg}></NumberCell>}
           ></MetricRow>
         </>
       )}
 
       {column.type === "datetime" && (
         <>
-          <MetricRow name="Min" base={input.min} input={base.min}></MetricRow>
-          <MetricRow name="Max" base={input.max} input={base.max}></MetricRow>
+          <MetricRow
+            name="Min"
+            base={<GeneralCell value={base?.min}></GeneralCell>}
+            input={<GeneralCell value={input?.min}></GeneralCell>}
+          ></MetricRow>
+          <MetricRow
+            name="Max"
+            base={<GeneralCell value={base?.max}></GeneralCell>}
+            input={<GeneralCell value={input?.max}></GeneralCell>}
+          ></MetricRow>
         </>
       )}
     </>
@@ -370,8 +389,8 @@ function CompareProfileColumn({ name, base, input }) {
   let CompareDistribution;
 
   if (
-    base.type === input.type &&
-    (base.type == "string" || base.type == "datetime")
+    base?.type === input?.type &&
+    (base?.type == "string" || base?.type == "datetime")
   ) {
     const transformDist = (base, input) => {
       let i = 0;
@@ -430,12 +449,12 @@ function CompareProfileColumn({ name, base, input }) {
       return m;
     };
 
-    let dataBase = transformDist(
+    let dataBase = base && transformDist(
       base.distribution.labels,
       base.distribution.counts,
       null
     );
-    let dataInput = transformDist(
+    let dataInput = input && transformDist(
       input.distribution.labels,
       null,
       input.distribution.counts
@@ -443,8 +462,8 @@ function CompareProfileColumn({ name, base, input }) {
 
     CompareDistribution = () => (
       <Grid my={4} templateColumns="1fr 1fr" gap={3}>
-        <ComparisonBarChart data={dataBase} />
-        <ComparisonBarChart data={dataInput} />
+        {dataBase ? <ComparisonBarChart data={dataBase} /> : <Box />}
+        {dataInput ? <ComparisonBarChart data={dataInput} /> : <Box />}
       </Grid>
     );
   }
@@ -546,7 +565,7 @@ export function ComparisonReportMain({ base, input }) {
           <CompareSchema base={base} input={input} />
 
           <Heading fontSize={24}>Profiling</Heading>
-          {/* <CompareProfile base={base} input={input} /> */}
+          <CompareProfile base={base} input={input} />
         </Flex>
       </Flex>
     </Main>
